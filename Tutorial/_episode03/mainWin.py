@@ -13,8 +13,8 @@ class GraphicSceneOverride(QGraphicsScene):
     lastMousePosition = None
     isMiddleMouseBtnPressed = False
 
-    def __init__(self, x, y, width, height):
-        super().__init__(x, y, width, height)
+    def __init__(self):
+        super().__init__()
         # set the color of the scene
         self.setBackgroundBrush(self.colorBackground)
 
@@ -26,6 +26,9 @@ class GraphicSceneOverride(QGraphicsScene):
 
         self.smallGridSize = 10
         self.bigGridSize = 50
+
+    def setGraphicSceneSize(self, width, height):
+        self.setSceneRect(-width // 2, -height // 2, width, height)
 
     def drawBackground(self, painter: QPainter, rectF: QRectF) -> None:
         super().drawBackground(painter, rectF)
@@ -56,6 +59,7 @@ class GraphicSceneOverride(QGraphicsScene):
         painter.setPen(self._penLighter)
         painter.drawLines(lightGreyLines)
 
+
 class GraphicViewOverride(QGraphicsView):
     scenePosChanged = pyqtSignal(int, int)
 
@@ -68,8 +72,8 @@ class GraphicViewOverride(QGraphicsView):
         self.setScene(self.scene)
 
         self.setRenderProperties()
-        #self.centerOn(0, 0)
-        #self.scaleScene(0.9)
+        self.centerOn(0, 0)
+        self.scaleScene(2)
 
     def setRenderProperties(self):
         self.setRenderHints(QPainter.RenderHint.Antialiasing
@@ -87,39 +91,37 @@ class GraphicViewOverride(QGraphicsView):
         :param event:
         :return:
         """
-        delta = event.angleDelta().y()
+        scaleFactor = round(1.5 ** (-event.angleDelta().y() / 240.0), 2)
+        self.scaleScene(scaleFactor)
 
+    def scaleScene(self, scaleFactor):
+        """
+        Scale the scene
+        :param scaleFactor:
+        :return:
+        """
         # get the current scale
         currentScale = self.transform().m11()
-
-        # if the delta is positive, zoom in
-        if delta > 0:
-            factor = 1.25
-        # if the delta is negative, zoom out
+        factor = 1
+        if scaleFactor < 1:
+            factor *= 0.8
         else:
-            factor = 0.8
-
+            factor *= 1.25
         if 0.13 < currentScale < 10:
             self.scale(factor, factor)
         elif currentScale <= 0.13:
-            self.scale(0.4/currentScale, 0.4/currentScale)
+            self.scale(0.4 / currentScale, 0.4 / currentScale)
         else:
             self.scale(0.8, 0.8)
-        scalefactor = round(1.5 ** (-event.angleDelta().y() / 240.0), 2)
-        print(f"1.5 ** ({event.angleDelta().y()} / 240.0) = {scalefactor}")
 
     def mousePressEvent(self, event):
         super().mousePressEvent(event)
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.leftMouseButtonPress(event)
-        elif event.button() == Qt.MouseButton.MiddleButton:
+        if event.button() == Qt.MouseButton.MiddleButton:
             self.middleMouseButtonPress(event)
 
     def mouseReleaseEvent(self, event):
         super().mouseReleaseEvent(event)
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.leftMouseButtonRelease(event)
-        elif event.button() == Qt.MouseButton.MiddleButton:
+        if event.button() == Qt.MouseButton.MiddleButton:
             self.middleMouseButtonRelease(event)
 
     def mouseMoveEvent(self, event):
@@ -129,12 +131,6 @@ class GraphicViewOverride(QGraphicsView):
         if self.isMiddleMouseButtonPressed:
             # panning the scene!
             self.panTheScene(event)
-
-    def leftMouseButtonPress(self, event):
-        pass
-
-    def leftMouseButtonRelease(self, event):
-        pass
 
     def middleMouseButtonPress(self, event):
         self.isMiddleMouseButtonPressed = True
@@ -158,14 +154,53 @@ class GraphicViewOverride(QGraphicsView):
         self.verticalScrollBar().setValue(int(vsBarValue - (deltaPosition.y())))
         event.accept()
 
+
+class Canvas(QWidget):
+    mainLayout: QVBoxLayout
+    scene: GraphicSceneOverride
+    view: QGraphicsView
+    width: int = 5000
+    height: int = 5000
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.initUI()
+
+    def initUI(self):
+        self.mainLayout = QVBoxLayout()
+        self.scene = GraphicSceneOverride()
+        self.scene.setGraphicSceneSize(self.width, self.height)
+        self.view = GraphicViewOverride(self.scene)
+        self.mainLayout.addWidget(self.view)
+        self.setLayout(self.mainLayout)
+
+        obj = QGraphicsRectItem(0, 0, 100, 100)
+        obj.setBrush(QBrush(QColor(255, 0, 0)))
+        obj.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+        self.scene.addItem(obj)
+        obj.setPos(100, 100)
+
+
 class MainWindow(QMainWindow):
+    statusMousePosition: QLabel
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self.graphicScene = GraphicSceneOverride(-5000, -5000, 5000, 5000)
-        self.graphicView = GraphicViewOverride(self.graphicScene)
-        self.setCentralWidget(self.graphicView)
+        self.canvas = Canvas()
+        self.setCentralWidget(self.canvas)
+        self.setGeometry(100, 100, 800, 600)
+        self.setWindowTitle("Tutorial - Episode 3 - Il mistero del lago di Garda")
+        self.createStatusBar()
+
+    def createStatusBar(self):
+        self.statusBar().showMessage("")
+        self.statusMousePosition = QLabel("")
+        self.statusBar().addPermanentWidget(self.statusMousePosition)
+        self.canvas.view.scenePosChanged.connect(self.onScenePosChanged)
+
+    def onScenePosChanged(self, x, y):
+        self.statusMousePosition.setText(f"Scene Pos: {x}:{y}")
 
 
 def main():
