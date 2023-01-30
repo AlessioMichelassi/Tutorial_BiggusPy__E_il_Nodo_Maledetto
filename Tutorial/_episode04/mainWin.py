@@ -13,6 +13,7 @@ class MainWindow(QMainWindow):
         self.setGeometry(100, 100, 800, 600)
         self.canvas = Canvas()
         self.setCentralWidget(self.canvas)
+        self.setWindowTitle("Tutorial - Episode 3 - Il mistero Blue Star")
         self.createStatusBar()
 
     def createStatusBar(self):

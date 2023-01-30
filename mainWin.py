@@ -11,6 +11,7 @@ class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setGeometry(100, 100, 800, 600)
+        self.setWindowTitle("Tutorial - Episode 3 - Il mistero Blue Star")
         self.canvas = Canvas()
         self.setCentralWidget(self.canvas)
         self.createStatusBar()
